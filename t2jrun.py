@@ -33,7 +33,7 @@ def read_config():
 
 def main():
     """
-    main function.
+    main function
     """
     try:
         Trello2Jira(read_config()).run()
