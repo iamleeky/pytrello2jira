@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+    "simple1": {
+      "format": "%(levelname)s: %(name)s: %(message)s"
+    }
+  },
+  "handlers": {
+    "console": {
+      "class": "logging.StreamHandler",
+      "level": "DEBUG",
+      "formatter": "simple1",
+      "stream": "ext://sys.stdout"
+    }
+  },
+  "loggers": {
+    "my_module": {
+      "level": "DEBUG",
+      "handlers": [
+        "console"
+      ],
+      "propagate": "no"
+    }
+  },
+  "root": {
+    "level": "DEBUG",
+    "handlers": [
+      "console"
+    ]
+  }
+}
