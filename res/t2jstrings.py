@@ -57,8 +57,9 @@ info_extract_done = 'All fields has been extracted. Saved to %s.' % dir_extract
 # jira
 # -------------------------------------------
 order = 'order'
+jira_field_basic = 'basic'
 jira_field_project = 'project'
-jira_field_project_id = 'id'
+jira_field_project_key = 'key'
 jira_field_summary = 'summary'
 jira_field_description = 'description'
 jira_field_issuetype = 'issuetype'

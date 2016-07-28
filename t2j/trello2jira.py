@@ -8,7 +8,10 @@ This module implements Trello to JIRA importer.
 import os
 import argparse
 import json
+# from io import StringIO
+from io import BytesIO
 from jira import JIRA
+from urllib import request
 import res.t2jstrings as strings
 import log.mylogging as mylogging
 import exc.myexceptions as exceptions
@@ -71,16 +74,28 @@ class Trello2Jira(object):
         """
         create jira issues with extracted fields
 
-        issue = jira.create_issue(fields=issue_dict)
-        issue.update(labels=['AAA', 'BBB'])
+        issue = jira.create_issue(fields=issue_dict) or issue = jira.issue('JIRA-9')
+        issue.update(labels=[{'add': 'AAA'}, {'add': 'BBB'}])
         jira.add_attachment(issue=issue, attachment=attachment, filename='content.txt')
         """
         jira = JIRA(server=self._url, basic_auth=(self._username, self._password))
 
         for field in self._field_list:
             try:
-                # issue = jira.create_issue(fields=field)
-                issue = jira.create_issue(fields={'summary': 'test summary'})
+                issue = None
+
+                # create issue
+                issue = jira.create_issue(fields=field[strings.jira_field_basic])
+
+                # add label
+                issue.update(labels=field[strings.jira_field_labels])
+
+                # add attachment
+                for src_url in field[strings.jira_field_attachs]:
+                    attachment = BytesIO()
+                    attachment.write(request.urlopen(src_url).read())
+                    jira.add_attachment(issue=issue, attachment=attachment, filename=src_url[src_url.rindex('/'):])
+
                 self._issue_list.append(issue)
             except Exception as err:
                 self._logger.error(strings.info_create_issue_error)
@@ -93,11 +108,16 @@ class Trello2Jira(object):
         """
         extract issue fields from exported trello json files
 
-        issue_dict = {
-            'project': {'id': 123},
-            'summary': 'New issue from jira-python',
-            'description': 'Look into this one',
-            'issuetype': {'name': 'Bug'},
+        {
+            'order': 0,
+            'basic': {
+                'project': {'id': 123},
+                'summary': 'New issue from jira-python',
+                'description': 'Look into this one',
+                'issuetype': {'name': 'Bug'},
+            },
+            'labels': [{'add':'AAA'}, {'add':'BBB'}],
+            'attachments': ['http://aaa.jpg', 'http://bbb.jpg']
         }
         """
         for file in self._file_list:
@@ -115,21 +135,36 @@ class Trello2Jira(object):
 
                 field = dict()
                 field[strings.order] = order
-                field[strings.jira_field_project] = {strings.jira_field_project_id: self._project}
-                field[strings.jira_field_summary] = card[strings.trel_field_cardname]
-                field[strings.jira_field_description] = card[strings.trel_field_carddesc]
-                field[strings.jira_field_issuetype] = \
+
+                # organize basic field
+                field[strings.jira_field_basic] = dict()
+                field[strings.jira_field_basic][strings.jira_field_project] = \
+                    {strings.jira_field_project_key: self._project}
+                field[strings.jira_field_basic][strings.jira_field_summary] = \
+                    card[strings.trel_field_cardname]
+                field[strings.jira_field_basic][strings.jira_field_description] = \
+                    card[strings.trel_field_carddesc]
+                field[strings.jira_field_basic][strings.jira_field_issuetype] = \
                     {strings.jira_field_issuetype_name: strings.jira_field_issuetype_task}
-                field[strings.jira_field_labels] = [board[strings.trel_field_boardname],
-                                                    board[strings.trel_field_boardurl],
-                                                    card[strings.trel_field_cardurl],
-                                                    boardlists[card[strings.trel_field_cardidlist]]]
+
+                # organize labels field
+                field[strings.jira_field_labels] = []
+                field[strings.jira_field_labels].append(
+                    {'add': board[strings.trel_field_boardname].replace(' ', '_')})
+                field[strings.jira_field_labels].append(
+                    {'add': board[strings.trel_field_boardurl].replace(' ', '_')})
+                field[strings.jira_field_labels].append(
+                    {'add': card[strings.trel_field_cardurl].replace(' ', '_')})
+                field[strings.jira_field_labels].append(
+                    {'add': boardlists[card[strings.trel_field_cardidlist]].replace(' ', '_')})
+
+                # organize attachments filed
                 field[strings.jira_field_attachs] = \
                     [attach[strings.trel_field_attachurl] for attach in card[strings.trel_field_cardattachs]]
 
                 self._field_list.append(field)
 
-        # save to file
+        # save it to file
         self._logger.info(strings.info_extract_done)
         if not os.path.exists(strings.dir_extract):
             os.makedirs(strings.dir_extract)
