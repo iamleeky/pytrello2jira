@@ -38,6 +38,7 @@ logging_conf_path = 'log/t2jlogging.json'
 # exceptions
 # -------------------------------------------
 exc_config_read_error = 'error occurs while reading configuration'
+exc_jira_issue_creation_error = 'failed to create jira issue'
 # -------------------------------------------
 
 # path
@@ -52,6 +53,11 @@ file_extract = 'extract.json'
 # -------------------------------------------
 info_create_issue_error = 'There is a failed item. Saved to %s.' % dir_error
 info_extract_done = 'All fields has been extracted. Saved to %s.' % dir_extract
+info_jobs_are_done = 'The jobs are all done.'
+info_jobs_count = 'Total'
+info_success_count = 'Success'
+info_failure_count = 'Failure'
+info_failure_count_help = 'See, %s.' % dir_error
 # -------------------------------------------
 
 # jira

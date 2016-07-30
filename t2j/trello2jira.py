@@ -16,7 +16,7 @@ import res.t2jstrings as strings
 import log.mylogging as mylogging
 import exc.myexceptions as exceptions
 
-now_testing = False
+now_testing = True
 
 
 class Trello2Jira(object):
@@ -29,7 +29,7 @@ class Trello2Jira(object):
     _project = ''  # jira project key
     _file_list = []  # json files exported from trello
     _field_list = []  # fields to be used to create jira issues
-    _issue_list = []  # finally created jira issues
+    _failed_field_list = []  # failed fields while creating jira issues
 
     def __init__(self, config):
         if not config:
@@ -77,35 +77,48 @@ class Trello2Jira(object):
 
         for field in self._field_list:
             try:
-                issue = None
+                print('### _create_issues_test ###')
 
                 # # manipulate issue description with checklists
                 # field[strings.jira_field_basic][strings.jira_field_description] += \
                 #     '\n' + '\n'.join(field[strings.jira_field_checklists])
-
+                #
                 # # create issue
                 # issue = jira.create_issue(fields=field[strings.jira_field_basic])
-
-                # # add label
-                # issue.update(labels=field[strings.jira_field_labels])
                 #
-                # # add attachment
-                # for src_url in field[strings.jira_field_attachs]:
-                #     attachment = BytesIO()
-                #     attachment.write(request.urlopen(src_url).read())
-                #     jira.add_attachment(issue=issue, attachment=attachment, filename=src_url[src_url.rindex('/'):])
-
-                # # add comments
-                # for comment in field[strings.jira_field_comments]:
-                #     jira.add_comment(issue, comment)
-
-                self._issue_list.append(issue)
+                # if issue:
+                #     # add label
+                #     issue.update(labels=field[strings.jira_field_labels])
+                #
+                #     # add attachment
+                #     for src_url in field[strings.jira_field_attachs]:
+                #         attachment = BytesIO()
+                #         attachment.write(request.urlopen(src_url).read())
+                #         jira.add_attachment(issue=issue, attachment=attachment,
+                #                             filename=src_url[src_url.rindex('/'):])
+                #
+                #     # add comment
+                #     for comment in field[strings.jira_field_comments]:
+                #         jira.add_comment(issue, comment)
+                # else:
+                #     raise exceptions.JiraIssueCreationException(strings.exc_jira_issue_creation_error)
             except Exception as err:
+                self._failed_field_list.append(field.copy())
                 self._logger.error(strings.info_create_issue_error)
+
                 if not os.path.exists(strings.dir_error):
                     os.makedirs(strings.dir_error)
                 fp = open('%s/%d.json' % (strings.dir_error, field[strings.order]), 'w')
                 json.dump(field, fp, indent=2)
+
+        self._logger.info('=' * 30)
+        self._logger.info(strings.info_jobs_are_done)
+        self._logger.info(' * ' + strings.info_jobs_count + ': ' + str(len(self._field_list)))
+        self._logger.info(' * ' + strings.info_success_count + ': '
+                          + str(len(self._field_list) - len(self._failed_field_list)))
+        self._logger.info(' * ' + strings.info_failure_count + ': '
+                          + str(len(self._failed_field_list)) + ' (' + strings.info_failure_count_help + ')')
+        self._logger.info('=' * 30)
 
     def _create_issues(self):
         """
@@ -139,15 +152,25 @@ class Trello2Jira(object):
                     # add comment
                     for comment in field[strings.jira_field_comments]:
                         jira.add_comment(issue, comment)
-
-                    # store created issue
-                    self._issue_list.append(issue)
+                else:
+                    raise exceptions.JiraIssueCreationException(strings.exc_jira_issue_creation_error)
             except Exception as err:
+                self._failed_field_list.append(field.copy())
                 self._logger.error(strings.info_create_issue_error)
+
                 if not os.path.exists(strings.dir_error):
                     os.makedirs(strings.dir_error)
                 fp = open('%s/%d.json' % (strings.dir_error, field[strings.order]), 'w')
                 json.dump(field, fp, indent=2)
+
+        self._logger.info('=' * 30)
+        self._logger.info(strings.info_jobs_are_done)
+        self._logger.info(' * ' + strings.info_jobs_count + ': ' + str(len(self._field_list)))
+        self._logger.info(' * ' + strings.info_success_count + ': '
+                          + str(len(self._field_list) - len(self._failed_field_list)))
+        self._logger.info(' * ' + strings.info_failure_count + ': '
+                          + str(len(self._failed_field_list)) + ' (' + strings.info_failure_count_help + ')')
+        self._logger.info('=' * 30)
 
     def _extract_fields(self):
         """

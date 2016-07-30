@@ -28,3 +28,9 @@ class ConfigException(MyException):
     """
     Configuration Error
     """
+
+
+class JiraIssueCreationException(MyException):
+    """
+    Configuration Error
+    """
