@@ -16,7 +16,7 @@ import res.t2jstrings as strings
 import log.mylogging as mylogging
 import exc.myexceptions as exceptions
 
-now_testing = False
+now_testing = True
 
 
 class Trello2Jira(object):
@@ -83,8 +83,8 @@ class Trello2Jira(object):
                 # field[strings.jira_field_basic][strings.jira_field_description] += \
                 #     '\n' + '\n'.join(field[strings.jira_field_checklists])
 
-                # # create issue
-                # issue = jira.create_issue(fields=field[strings.jira_field_basic])
+                # create issue
+                issue = jira.create_issue(fields=field[strings.jira_field_basic])
 
                 # # add label
                 # issue.update(labels=field[strings.jira_field_labels])
@@ -216,7 +216,9 @@ class Trello2Jira(object):
                     + '[' + boardlists[card[strings.trel_field_cardidlist]] + ']' \
                     + ' ' + card[strings.trel_field_cardname]
                 field[strings.jira_field_basic][strings.jira_field_description] = \
-                    card[strings.trel_field_carddesc]
+                    card[strings.trel_field_carddesc] \
+                    + '\n\n' + '*Board Link* - ' + board[strings.trel_field_boardurl] \
+                    + '\n' + '*Card Link* - ' + card[strings.trel_field_cardurl]
                 field[strings.jira_field_basic][strings.jira_field_issuetype] = \
                     {strings.jira_field_issuetype_name: strings.jira_field_issuetype_task}
 
