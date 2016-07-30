@@ -16,7 +16,7 @@ import res.t2jstrings as strings
 import log.mylogging as mylogging
 import exc.myexceptions as exceptions
 
-now_testing = True
+now_testing = False
 
 
 class Trello2Jira(object):
@@ -79,12 +79,12 @@ class Trello2Jira(object):
             try:
                 issue = None
 
-                # manipulate issue description with checklists
-                field[strings.jira_field_basic][strings.jira_field_description] += \
-                    '\n' + '\n'.join(field[strings.jira_field_checklists])
+                # # manipulate issue description with checklists
+                # field[strings.jira_field_basic][strings.jira_field_description] += \
+                #     '\n' + '\n'.join(field[strings.jira_field_checklists])
 
-                # create issue
-                issue = jira.create_issue(fields=field[strings.jira_field_basic])
+                # # create issue
+                # issue = jira.create_issue(fields=field[strings.jira_field_basic])
 
                 # # add label
                 # issue.update(labels=field[strings.jira_field_labels])
@@ -94,6 +94,10 @@ class Trello2Jira(object):
                 #     attachment = BytesIO()
                 #     attachment.write(request.urlopen(src_url).read())
                 #     jira.add_attachment(issue=issue, attachment=attachment, filename=src_url[src_url.rindex('/'):])
+
+                # # add comments
+                # for comment in field[strings.jira_field_comments]:
+                #     jira.add_comment(issue, comment)
 
                 self._issue_list.append(issue)
             except Exception as err:
@@ -115,8 +119,6 @@ class Trello2Jira(object):
 
         for field in self._field_list:
             try:
-                issue = None
-
                 # manipulate issue description with checklists
                 field[strings.jira_field_basic][strings.jira_field_description] += \
                     '\n' + '\n'.join(field[strings.jira_field_checklists])
@@ -124,16 +126,22 @@ class Trello2Jira(object):
                 # create issue
                 issue = jira.create_issue(fields=field[strings.jira_field_basic])
 
-                # add label
-                issue.update(labels=field[strings.jira_field_labels])
+                if issue:
+                    # add label
+                    issue.update(labels=field[strings.jira_field_labels])
 
-                # add attachment
-                for src_url in field[strings.jira_field_attachs]:
-                    attachment = BytesIO()
-                    attachment.write(request.urlopen(src_url).read())
-                    jira.add_attachment(issue=issue, attachment=attachment, filename=src_url[src_url.rindex('/'):])
+                    # add attachment
+                    for src_url in field[strings.jira_field_attachs]:
+                        attachment = BytesIO()
+                        attachment.write(request.urlopen(src_url).read())
+                        jira.add_attachment(issue=issue, attachment=attachment, filename=src_url[src_url.rindex('/'):])
 
-                self._issue_list.append(issue)
+                    # add comment
+                    for comment in field[strings.jira_field_comments]:
+                        jira.add_comment(issue, comment)
+
+                    # store created issue
+                    self._issue_list.append(issue)
             except Exception as err:
                 self._logger.error(strings.info_create_issue_error)
                 if not os.path.exists(strings.dir_error):
@@ -161,7 +169,8 @@ class Trello2Jira(object):
                     "attachments": [...]
                 },
                 {...}, ...
-            ]
+            ],
+            "actions": [{...}, ...]
         }
 
         <output - filed lists to be sent to JIRA>
@@ -176,7 +185,8 @@ class Trello2Jira(object):
                 },
                 'labels': [{'add':'AAA'}, {'add':'BBB'}],
                 'attachments': ['http://aaa.jpg', 'http://bbb.jpg'],
-                'checklists': ['...', ...]
+                'checklists': ['...', ...],
+                'comments': ['...', ...]
             },
             {...}, ...
         ]
@@ -250,7 +260,25 @@ class Trello2Jira(object):
                             # add checklist
                             field[strings.jira_field_checklists].append(chlist_jira)
 
-                # add new filed
+                # organize comments
+                field[strings.jira_field_comments] = []
+                for action in reversed(board[strings.trel_field_boardactions]):
+                    if action[strings.trel_field_boardactions_type] == strings.trel_field_boardactions_typecommentcard:
+                        action_data = action[strings.trel_field_boardactions_data]
+                        action_data_card = action_data[strings.trel_field_boardactions_data_card]
+                        action_data_card_id = action_data_card[strings.trel_field_boardactions_data_card_id]
+                        action_membercreator = action[strings.trel_field_boardactions_membercreator]
+                        if action_data_card_id == card[strings.trel_field_cardid]:
+                            # make comment
+                            cmnt_author = action_membercreator[strings.trel_field_boardactions_membercreator_fullname]
+                            cmnt_content = action_data[strings.trel_field_boardactions_data_text]
+                            cmnt_item = 'h4. ' + cmnt_author + '\'s Comment:'
+                            cmnt_item += '\n' + cmnt_content
+
+                            # add new comment
+                            field[strings.jira_field_comments].append(cmnt_item)
+
+                # finally add new filed
                 self._field_list.append(field)
 
         # save it to file
