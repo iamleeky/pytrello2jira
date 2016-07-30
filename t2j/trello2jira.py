@@ -16,6 +16,8 @@ import res.t2jstrings as strings
 import log.mylogging as mylogging
 import exc.myexceptions as exceptions
 
+now_testing = True
+
 
 class Trello2Jira(object):
     _logger = None  # logger
@@ -70,6 +72,9 @@ class Trello2Jira(object):
         """
         self._project = self._config.get(strings.section_jira, strings.key_jira_project)
 
+    def _create_issues_test(self):
+        jira = JIRA(server=self._url, basic_auth=(self._username, self._password))
+
     def _create_issues(self):
         """
         create jira issues with extracted fields
@@ -108,17 +113,40 @@ class Trello2Jira(object):
         """
         extract issue fields from exported trello json files
 
+        <input - trello.json>
         {
-            'order': 0,
-            'basic': {
-                'project': {'id': 123},
-                'summary': 'New issue from jira-python',
-                'description': 'Look into this one',
-                'issuetype': {'name': 'Bug'},
-            },
-            'labels': [{'add':'AAA'}, {'add':'BBB'}],
-            'attachments': ['http://aaa.jpg', 'http://bbb.jpg']
+            "name": "name of the board",
+            "url": "http://...",
+            "lists": [...],
+            "checklists": [...],
+            "cards": [
+                {
+                    "name": "name of one of cards",
+                    "desc": "description of one of cards",
+                    "idList": "1234567890",
+                    "idChecklists": ["abcdefgh", "...", ...],
+                    "url": "http://...",
+                    "attachments": [...]
+                },
+                {...}, ...
+            ]
         }
+
+        <output - filed lists to be sent to JIRA>
+        [
+            {
+                'order': 0,
+                'basic': {
+                    'project': {'id': 'ABC'},
+                    'summary': 'New issue from jira-python',
+                    'description': 'Look into this one',
+                    'issuetype': {'name': 'Bug'},
+                },
+                'labels': [{'add':'AAA'}, {'add':'BBB'}],
+                'attachments': ['http://aaa.jpg', 'http://bbb.jpg']
+            },
+            {...}, ...
+        ]
         """
         for file in self._file_list:
             fp = open(file, 'r', encoding='utf-8')
@@ -185,4 +213,8 @@ class Trello2Jira(object):
         self._logger.debug(strings.dbg_user_info + self._username)
 
         self._extract_fields()
-        self._create_issues()
+
+        if now_testing:
+            self._create_issues_test()
+        else:
+            self._create_issues()
