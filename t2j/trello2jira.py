@@ -75,6 +75,30 @@ class Trello2Jira(object):
     def _create_issues_test(self):
         jira = JIRA(server=self._url, basic_auth=(self._username, self._password))
 
+        for field in self._field_list:
+            try:
+                issue = None
+
+                # create issue
+                issue = jira.create_issue(fields=field[strings.jira_field_basic])
+
+                # # add label
+                # issue.update(labels=field[strings.jira_field_labels])
+                #
+                # # add attachment
+                # for src_url in field[strings.jira_field_attachs]:
+                #     attachment = BytesIO()
+                #     attachment.write(request.urlopen(src_url).read())
+                #     jira.add_attachment(issue=issue, attachment=attachment, filename=src_url[src_url.rindex('/'):])
+
+                self._issue_list.append(issue)
+            except Exception as err:
+                self._logger.error(strings.info_create_issue_error)
+                if not os.path.exists(strings.dir_error):
+                    os.makedirs(strings.dir_error)
+                fp = open('%s/%d.json' % (strings.dir_error, field[strings.order]), 'w')
+                json.dump(field, fp, indent=2)
+
     def _create_issues(self):
         """
         create jira issues with extracted fields
@@ -169,7 +193,9 @@ class Trello2Jira(object):
                 field[strings.jira_field_basic][strings.jira_field_project] = \
                     {strings.jira_field_project_key: self._project}
                 field[strings.jira_field_basic][strings.jira_field_summary] = \
-                    card[strings.trel_field_cardname]
+                    '[' + board[strings.trel_field_boardname] + ']' \
+                    + '[' + boardlists[card[strings.trel_field_cardidlist]] + ']' \
+                    + ' ' + card[strings.trel_field_cardname]
                 field[strings.jira_field_basic][strings.jira_field_description] = \
                     card[strings.trel_field_carddesc]
                 field[strings.jira_field_basic][strings.jira_field_issuetype] = \
