@@ -58,6 +58,8 @@ info_jobs_count = 'Total'
 info_success_count = 'Success'
 info_failure_count = 'Failure'
 info_failure_count_help = 'See, %s.' % dir_error
+info_retry_for_failure = 'Now retry for failed items ...'
+info_progress = 'Progress'
 # -------------------------------------------
 
 # jira

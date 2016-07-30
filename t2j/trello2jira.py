@@ -16,10 +16,12 @@ import res.t2jstrings as strings
 import log.mylogging as mylogging
 import exc.myexceptions as exceptions
 
-now_testing = True
+now_testing = False
+now_testing_field_file = False
 
 
 class Trello2Jira(object):
+    _jira = None  # jira connection object
     _logger = None  # logger
     _args = {}  # command line arguments
     _config = None  # user configuration
@@ -72,19 +74,45 @@ class Trello2Jira(object):
         """
         self._project = self._config.get(strings.section_jira, strings.key_jira_project)
 
-    def _create_issues_test(self):
-        jira = JIRA(server=self._url, basic_auth=(self._username, self._password))
+    def _remove_field(self, in_field_list, in_target_field):
+        """
+        remove the target field from the given list
+        :param in_field_list:
+        :param in_target_field:
+        :return: none
+        """
+        for index, field in enumerate(in_field_list):
+            if field[strings.order] == in_target_field[strings.order]:
+                in_field_list.pop(index)
 
-        for field in self._field_list:
+    def _add_field_if_not_exist(self, in_field_list, in_target_field):
+        """
+        add the target field into the given list if the field does not exist
+        :param in_field_list:
+        :param in_target_field:
+        :return: none
+        """
+        for index, field in enumerate(in_field_list):
+            if field[strings.order] == in_target_field[strings.order]:
+                return
+
+        in_field_list.append(in_target_field.copy())
+
+    def _create_issues_test(self, in_field_list):
+
+        in_field_len = len(in_field_list)
+
+        if not self._jira:
+            self._jira = JIRA(server=self._url, basic_auth=(self._username, self._password))
+
+        self._logger.info(strings.info_progress + ':  0 / ' + str(in_field_len))
+
+        for index, field in enumerate(in_field_list):
             try:
-                print('### _create_issues_test ###')
+                self._logger.info('### _create_issues_test ###')
 
-                # # manipulate issue description with checklists
-                # field[strings.jira_field_basic][strings.jira_field_description] += \
-                #     '\n' + '\n'.join(field[strings.jira_field_checklists])
-                #
                 # # create issue
-                # issue = jira.create_issue(fields=field[strings.jira_field_basic])
+                # issue = self._jira.create_issue(fields=field[strings.jira_field_basic])
                 #
                 # if issue:
                 #     # add label
@@ -94,22 +122,27 @@ class Trello2Jira(object):
                 #     for src_url in field[strings.jira_field_attachs]:
                 #         attachment = BytesIO()
                 #         attachment.write(request.urlopen(src_url).read())
-                #         jira.add_attachment(issue=issue, attachment=attachment,
+                #         self._jira.add_attachment(issue=issue, attachment=attachment,
                 #                             filename=src_url[src_url.rindex('/'):])
                 #
                 #     # add comment
                 #     for comment in field[strings.jira_field_comments]:
-                #         jira.add_comment(issue, comment)
+                #         self._jira.add_comment(issue, comment)
                 # else:
                 #     raise exceptions.JiraIssueCreationException(strings.exc_jira_issue_creation_error)
+                #
+                # self._remove_field(self._failed_field_list, field)
             except Exception as err:
-                self._failed_field_list.append(field.copy())
+                self._add_field_if_not_exist(self._failed_field_list, field)
                 self._logger.error(strings.info_create_issue_error)
+                self._logger.error(err)
 
                 if not os.path.exists(strings.dir_error):
                     os.makedirs(strings.dir_error)
                 fp = open('%s/%d.json' % (strings.dir_error, field[strings.order]), 'w')
                 json.dump(field, fp, indent=2)
+
+            self._logger.info(strings.info_progress + ':  ' + str(index + 1) + ' / ' + str(in_field_len))
 
         self._logger.info('=' * 30)
         self._logger.info(strings.info_jobs_are_done)
@@ -120,7 +153,7 @@ class Trello2Jira(object):
                           + str(len(self._failed_field_list)) + ' (' + strings.info_failure_count_help + ')')
         self._logger.info('=' * 30)
 
-    def _create_issues(self):
+    def _create_issues(self, in_field_list):
         """
         create jira issues with extracted fields
 
@@ -128,16 +161,17 @@ class Trello2Jira(object):
         issue.update(labels=[{'add': 'AAA'}, {'add': 'BBB'}])
         jira.add_attachment(issue=issue, attachment=attachment, filename='content.txt')
         """
-        jira = JIRA(server=self._url, basic_auth=(self._username, self._password))
+        in_field_len = len(in_field_list)
 
-        for field in self._field_list:
+        if not self._jira:
+            self._jira = JIRA(server=self._url, basic_auth=(self._username, self._password))
+
+        self._logger.info(strings.info_progress + ':  0 / ' + str(in_field_len))
+
+        for index, field in enumerate(in_field_list):
             try:
-                # manipulate issue description with checklists
-                field[strings.jira_field_basic][strings.jira_field_description] += \
-                    '\n' + '\n'.join(field[strings.jira_field_checklists])
-
                 # create issue
-                issue = jira.create_issue(fields=field[strings.jira_field_basic])
+                issue = self._jira.create_issue(fields=field[strings.jira_field_basic])
 
                 if issue:
                     # add label
@@ -147,21 +181,26 @@ class Trello2Jira(object):
                     for src_url in field[strings.jira_field_attachs]:
                         attachment = BytesIO()
                         attachment.write(request.urlopen(src_url).read())
-                        jira.add_attachment(issue=issue, attachment=attachment, filename=src_url[src_url.rindex('/'):])
+                        self._jira.add_attachment(issue=issue, attachment=attachment, filename=src_url[src_url.rindex('/'):])
 
                     # add comment
                     for comment in field[strings.jira_field_comments]:
-                        jira.add_comment(issue, comment)
+                        self._jira.add_comment(issue, comment)
                 else:
                     raise exceptions.JiraIssueCreationException(strings.exc_jira_issue_creation_error)
+
+                self._remove_field(self._failed_field_list, field)
             except Exception as err:
-                self._failed_field_list.append(field.copy())
+                self._add_field_if_not_exist(self._failed_field_list, field)
                 self._logger.error(strings.info_create_issue_error)
+                self._logger.error(err)
 
                 if not os.path.exists(strings.dir_error):
                     os.makedirs(strings.dir_error)
                 fp = open('%s/%d.json' % (strings.dir_error, field[strings.order]), 'w')
                 json.dump(field, fp, indent=2)
+
+            self._logger.info(strings.info_progress + ':  ' + str(index + 1) + ' / ' + str(in_field_len))
 
         self._logger.info('=' * 30)
         self._logger.info(strings.info_jobs_are_done)
@@ -303,8 +342,53 @@ class Trello2Jira(object):
                             # add new comment
                             field[strings.jira_field_comments].append(cmnt_item)
 
+                # manipulate issue description with checklists
+                field[strings.jira_field_basic][strings.jira_field_description] += \
+                    '\n' + '\n'.join(field[strings.jira_field_checklists])
+
+                # remove new line character from issue summary
+                field[strings.jira_field_basic][strings.jira_field_summary].replace('\n', ' ')
+
                 # finally add new filed
                 self._field_list.append(field)
+
+        # save it to file
+        self._logger.info(strings.info_extract_done)
+        if not os.path.exists(strings.dir_extract):
+            os.makedirs(strings.dir_extract)
+        fp = open('%s/%s' % (strings.dir_extract, strings.file_extract), 'w')
+        json.dump(self._field_list, fp, indent=2)
+
+    def _extract_fields_from_file(self):
+        """
+        extract fields from files which contains already converted fields
+        :return: none
+
+        <input>
+        {
+            'order': 0,
+            'basic': {
+                'project': {'id': 'ABC'},
+                'summary': 'New issue from jira-python',
+                'description': 'Look into this one',
+                'issuetype': {'name': 'Bug'},
+            },
+            'labels': [{'add':'AAA'}, {'add':'BBB'}],
+            'attachments': ['http://aaa.jpg', 'http://bbb.jpg'],
+            'checklists': ['...', ...],
+            'comments': ['...', ...]
+        }
+        """
+        for file in self._file_list:
+            fp = open(file, 'r', encoding='utf-8')
+            field = json.load(fp)
+            fp.close()
+
+            # remove new line character from issue summary
+            field[strings.jira_field_basic][strings.jira_field_summary] = \
+                field[strings.jira_field_basic][strings.jira_field_summary].replace('\n', ' ')
+
+            self._field_list.append(field)
 
         # save it to file
         self._logger.info(strings.info_extract_done)
@@ -326,9 +410,21 @@ class Trello2Jira(object):
         self._logger.debug(strings.dbg_src_files_info + ' '.join(self._file_list))
         self._logger.debug(strings.dbg_user_info + self._username)
 
-        self._extract_fields()
-
-        if now_testing:
-            self._create_issues_test()
+        if now_testing_field_file:
+            self._extract_fields_from_file()
         else:
-            self._create_issues()
+            self._extract_fields()
+
+        # create issues
+        if now_testing:
+            self._create_issues_test(self._field_list)
+        else:
+            self._create_issues(self._field_list)
+
+        # retry if any failed job exists
+        if len(self._failed_field_list) > 0:
+            self._logger.info(strings.info_retry_for_failure)
+            if now_testing:
+                self._create_issues_test(self._failed_field_list)
+            else:
+                self._create_issues(self._failed_field_list)
