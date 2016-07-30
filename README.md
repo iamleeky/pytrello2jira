@@ -18,7 +18,7 @@ Trello fields are converted to Jira fields automatically like below,
 # HowTo
 [1] Fill out properties in conf/t2j.ini
 
-  - url : Your Jira URL, e.g. https://myproject.atlassian.net
+  - url : Your Jira URL, e.g. https://myjira.atlassian.net
   - project : Your Project Key
   - username : Your Login ID
   - password : Your Login Password
