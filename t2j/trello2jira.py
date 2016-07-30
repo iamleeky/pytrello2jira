@@ -79,6 +79,10 @@ class Trello2Jira(object):
             try:
                 issue = None
 
+                # manipulate issue description with checklists
+                field[strings.jira_field_basic][strings.jira_field_description] += \
+                    '\n' + '\n'.join(field[strings.jira_field_checklists])
+
                 # create issue
                 issue = jira.create_issue(fields=field[strings.jira_field_basic])
 
@@ -112,6 +116,10 @@ class Trello2Jira(object):
         for field in self._field_list:
             try:
                 issue = None
+
+                # manipulate issue description with checklists
+                field[strings.jira_field_basic][strings.jira_field_description] += \
+                    '\n' + '\n'.join(field[strings.jira_field_checklists])
 
                 # create issue
                 issue = jira.create_issue(fields=field[strings.jira_field_basic])
@@ -167,7 +175,8 @@ class Trello2Jira(object):
                     'issuetype': {'name': 'Bug'},
                 },
                 'labels': [{'add':'AAA'}, {'add':'BBB'}],
-                'attachments': ['http://aaa.jpg', 'http://bbb.jpg']
+                'attachments': ['http://aaa.jpg', 'http://bbb.jpg'],
+                'checklists': ['...', ...]
             },
             {...}, ...
         ]
@@ -216,6 +225,32 @@ class Trello2Jira(object):
                 field[strings.jira_field_attachs] = \
                     [attach[strings.trel_field_attachurl] for attach in card[strings.trel_field_cardattachs]]
 
+                # organize checklists filed
+                field[strings.jira_field_checklists] = []
+                for chlist_id in card[strings.trel_field_cardidchecklists]:
+                    for chlist_trel in board[strings.trel_field_boardchecklists]:
+                        if chlist_id == chlist_trel[strings.trel_field_boardchecklists_id]:
+                            # make checklist title
+                            chlist_jira = '\n' + 'h4. ' + chlist_trel[strings.trel_field_boardchecklists_name]
+
+                            # make checklist items
+                            for chlist_trel_item in chlist_trel[strings.trel_field_boardchecklists_checkitems]:
+                                # if complete
+                                if strings.trel_field_boardchecklists_checkitems_statecomplete \
+                                        == chlist_trel_item[strings.trel_field_boardchecklists_checkitems_state]:
+                                    chlist_jira += '\n' + '(/)'
+                                # or incomplete
+                                else:
+                                    chlist_jira += '\n' + '(?)'
+
+                                # item name
+                                chlist_jira += \
+                                    ' ' + chlist_trel_item[strings.trel_field_boardchecklists_checkitems_name]
+
+                            # add checklist
+                            field[strings.jira_field_checklists].append(chlist_jira)
+
+                # add new filed
                 self._field_list.append(field)
 
         # save it to file
